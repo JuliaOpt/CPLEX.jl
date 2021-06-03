@@ -8,13 +8,13 @@ const MOI  = MathOptInterface
 const MOIT = MOI.Test
 const MOIB = MOI.Bridges
 
-const CONFIG = MOIT.TestConfig(basis = true)
+const CONFIG = MOIT.Config(basis = true)
 
 const OPTIMIZER = CPLEX.Optimizer()
 MOI.set(OPTIMIZER, MOI.Silent(), true)
 # Turn off presolve reductions so CPLEX will generate infeasibility
 # certificates.
-MOI.set(OPTIMIZER, MOI.RawParameter("CPX_PARAM_REDUCE"), 0)
+MOI.set(OPTIMIZER, MOI.RawOptimizerAttribute("CPX_PARAM_REDUCE"), 0)
 
 const BRIDGED_OPTIMIZER = MOI.Bridges.full_bridge_optimizer(OPTIMIZER, Float64)
 
@@ -59,6 +59,8 @@ function test_unittest()
         # TODO(odow): bug! We can't delete a vector of variables  if one is in
         # a second order cone.
         "delete_soc_variables",
+        # TODO(odow): Implement ConstraintDualStart.
+        "solve_start_soc",
     ])
 end
 
@@ -81,7 +83,7 @@ end
 function test_contquadratictest()
     MOIT.contquadratictest(
         BRIDGED_OPTIMIZER,
-        MOIT.TestConfig(atol = 1e-3, rtol = 1e-3),
+        MOIT.Config(atol = 1e-3, rtol = 1e-3),
         ["ncqcp"], # CPLEX doesn't support non-convex problems
     )
 end
@@ -107,7 +109,7 @@ function test_CPXPARAM_OptimalityTarget()
     MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
     MOI.set(
         model,
-        MOI.RawParameter("CPXPARAM_OptimalityTarget"),
+        MOI.RawOptimizerAttribute("CPXPARAM_OptimalityTarget"),
         CPX_OPTIMALITYTARGET_OPTIMALGLOBAL,
     )
     MOI.optimize!(model)
@@ -120,14 +122,14 @@ end
 function test_contconic()
     MOIT.lintest(BRIDGED_OPTIMIZER, CONFIG)
 
-    soc_config = MOIT.TestConfig(atol=5e-3)
+    soc_config = MOIT.Config(atol=5e-3)
 
     # TODO(odow): investigate why infeasibility certificates not generated for
     # SOC.
     MOIT.soctest(BRIDGED_OPTIMIZER, soc_config, ["soc3"])
     MOIT.soc3test(
         BRIDGED_OPTIMIZER,
-        MOIT.TestConfig(atol = 1e-3, infeas_certificates = false)
+        MOIT.Config(atol = 1e-3, infeas_certificates = false)
     )
 
     MOIT.rsoctest(BRIDGED_OPTIMIZER, soc_config, ["rotatedsoc2"])
@@ -135,7 +137,7 @@ function test_contconic()
         BRIDGED_OPTIMIZER,
         # Need for `duals = false` fixed by https://github.com/jump-dev/MathOptInterface.jl/pull/1171
         # Remove in a future MOI 0.9.18+ release.
-        MOIT.TestConfig(
+        MOIT.Config(
             atol = 1e-3, infeas_certificates = false, duals = false
         ),
     )
@@ -473,7 +475,7 @@ function test_conflict_no_conflict()
 end
 
 function test_365()
-    # Root problem: missing method to get the status for an integrality 
+    # Root problem: missing method to get the status for an integrality
     # constraint.
     model = CPLEX.Optimizer()
     x, c1 = MOI.add_constrained_variable(model, MOI.ZeroOne())
@@ -556,7 +558,7 @@ end
 function test_farkas_dual_min()
     model = CPLEX.Optimizer()
     MOI.set(model, MOI.Silent(), true)
-    MOI.set(model, MOI.RawParameter("CPX_PARAM_REDUCE"), 0)
+    MOI.set(model, MOI.RawOptimizerAttribute("CPX_PARAM_REDUCE"), 0)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(
@@ -588,7 +590,7 @@ end
 function test_farkas_dual_min_interval()
     model = CPLEX.Optimizer()
     MOI.set(model, MOI.Silent(), true)
-    MOI.set(model, MOI.RawParameter("CPX_PARAM_REDUCE"), 0)
+    MOI.set(model, MOI.RawOptimizerAttribute("CPX_PARAM_REDUCE"), 0)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(
@@ -620,7 +622,7 @@ end
 function test_farkas_dual_min_equalto()
     model = CPLEX.Optimizer()
     MOI.set(model, MOI.Silent(), true)
-    MOI.set(model, MOI.RawParameter("CPX_PARAM_REDUCE"), 0)
+    MOI.set(model, MOI.RawOptimizerAttribute("CPX_PARAM_REDUCE"), 0)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(
@@ -650,7 +652,7 @@ end
 function test_farkas_dual_min_ii()
     model = CPLEX.Optimizer()
     MOI.set(model, MOI.Silent(), true)
-    MOI.set(model, MOI.RawParameter("CPX_PARAM_REDUCE"), 0)
+    MOI.set(model, MOI.RawOptimizerAttribute("CPX_PARAM_REDUCE"), 0)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(
@@ -682,7 +684,7 @@ end
 function test_farkas_dual_max()
     model = CPLEX.Optimizer()
     MOI.set(model, MOI.Silent(), true)
-    MOI.set(model, MOI.RawParameter("CPX_PARAM_REDUCE"), 0)
+    MOI.set(model, MOI.RawOptimizerAttribute("CPX_PARAM_REDUCE"), 0)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
     MOI.set(
@@ -714,7 +716,7 @@ end
 function test_farkas_dual_max_ii()
     model = CPLEX.Optimizer()
     MOI.set(model, MOI.Silent(), true)
-    MOI.set(model, MOI.RawParameter("CPX_PARAM_REDUCE"), 0)
+    MOI.set(model, MOI.RawOptimizerAttribute("CPX_PARAM_REDUCE"), 0)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
     MOI.set(
